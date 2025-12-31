@@ -1,56 +1,234 @@
-struct PVC {
-  outer_diameter: f64,
-  height_mm: f64,
-  weight_g: f64,
-  wall_thickness: f64,
-  position: f64,
-}
+Use rapier3d::prelude::*;
+use rand::Rng;
 
-struct Chariot {
-  width: f64,
-  height: f64,
-  weight_kg: f64,
-  position: f64,
-}
-
+/// Structure représentant l'animation d'un bâton en équilibre sur un chariot
 pub struct BalanceStickAnimation {
-  pvc: PVC,
-  chariot: Chariot,
+    physics_pipeline: PhysicsPipeline,
+    island_manager: IslandManager,
+    broad_phase: DefaultBroadPhase,
+    narrow_phase: NarrowPhase,
+    impulse_joint_set: ImpulseJointSet,
+    multibody_joint_set: MultibodyJointSet,
+    ccd_solver: CCDSolver,
+    query_pipeline: QueryPipeline,
+    rigid_body_set: RigidBodySet,
+    collider_set: ColliderSet,
+    cart_handle: RigidBodyHandle,
+    stick_handle: RigidBodyHandle,
+    duration: f64,
+    time_step: f64,
 }
 
 impl BalanceStickAnimation {
-  pub fn start(&self, duration: f64, ) -> Vec<f64> {
-    self.construct();
-    //
-  }
-
-  pub fn construct() {
-    self.pvc = PVC::new(1500, 114.3, 6.0198);
-    self.chariot = Chariot::new();
-  }
-}
-
-impl PVC {
-    fn new(height_mm: f64, outer_diameter: f64, wall_thickness: f64) -> Self {
-        let rho = 1.4; // g/cm³
-        let r_outer = outer_diameter / 2.0;
-        let r_inner = r_outer - wall_thickness;
-
-        let volume_cm3 = std::f64::consts::PI * (r_outer.powi(2) - r_inner.powi(2)) * height_mm / 1000.0;
-        let weight_g = rho * volume_cm3;
-
+    /// Crée une nouvelle simulation avec une durée donnée
+    pub fn new(duration: f64) -> Self {
+        let mut rigid_body_set = RigidBodySet::new();
+        let mut collider_set = ColliderSet::new();
+        
+        // Création du sol
+        let ground_body = RigidBodyBuilder::fixed()
+            .translation(vector![0.0, -0.5, 0.0])
+            .build();
+        let ground_handle = rigid_body_set.insert(ground_body);
+        let ground_collider = ColliderBuilder::cuboid(50.0, 0.5, 50.0).build();
+        collider_set.insert_with_parent(ground_collider, ground_handle, &mut rigid_body_set);
+        
+        // Création du chariot (avec friction pour le sol)
+        let cart_body = RigidBodyBuilder::dynamic()
+            .translation(vector![0.0, 0.5, 0.0])
+            .lock_rotations() // Le chariot ne peut pas tourner
+            .build();
+        let cart_handle = rigid_body_set.insert(cart_body);
+        let cart_collider = ColliderBuilder::cuboid(1.0, 0.2, 0.5)
+            .friction(0.3)
+            .restitution(0.1)
+            .build();
+        collider_set.insert_with_parent(cart_collider, cart_handle, &mut rigid_body_set);
+        
+        // Création du bâton (longue tige verticale)
+        let stick_length = 3.0;
+        let stick_body = RigidBodyBuilder::dynamic()
+            .translation(vector![0.0, 0.7 + stick_length / 2.0, 0.0])
+            .build();
+        let stick_handle = rigid_body_set.insert(stick_body);
+        let stick_collider = ColliderBuilder::cylinder(stick_length / 2.0, 0.05)
+            .density(0.5)
+            .friction(0.2)
+            .build();
+        collider_set.insert_with_parent(stick_collider, stick_handle, &mut rigid_body_set);
+        
+        // Joint sphérique entre le chariot et le bâton (point de pivot)
+        let mut impulse_joint_set = ImpulseJointSet::new();
+        let joint = SphericalJointBuilder::new()
+            .local_anchor1(point![0.0, 0.2, 0.0]) // Haut du chariot
+            .local_anchor2(point![0.0, -stick_length / 2.0, 0.0]) // Base du bâton
+            .build();
+        impulse_joint_set.insert(cart_handle, stick_handle, joint, true);
+        
         Self {
-            outer_diameter,
-            height_mm,
-            weight_g,
-            wall_thickness,
-            position: 0.0,
+            physics_pipeline: PhysicsPipeline::new(),
+            island_manager: IslandManager::new(),
+            broad_phase: DefaultBroadPhase::new(),
+            narrow_phase: NarrowPhase::new(),
+            impulse_joint_set,
+            multibody_joint_set: MultibodyJointSet::new(),
+            ccd_solver: CCDSolver::new(),
+            query_pipeline: QueryPipeline::new(),
+            rigid_body_set,
+            collider_set,
+            cart_handle,
+            stick_handle,
+            duration,
+            time_step: 1.0 / 60.0,
+        }
+    }
+    
+    /// Exécute la simulation et retourne les données d'angle du bâton
+    pub fn run(&mut self) -> Vec<f64> {
+        let mut angles = Vec::new();
+        let mut rng = rand::thread_rng();
+        let num_steps = (self.duration / self.time_step) as usize;
+        
+        let mut obstacle_timer = 0.0;
+        let obstacle_interval = rng.gen_range(0.5..2.0);
+        
+        for step in 0..num_steps {
+            let current_time = step as f64 * self.time_step;
+            obstacle_timer += self.time_step;
+            
+            // Appliquer des perturbations aléatoires (obstacles)
+            if obstacle_timer >= obstacle_interval {
+                obstacle_timer = 0.0;
+                
+                let force_magnitude = rng.gen_range(10.0..50.0);
+                let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+                
+                // Décider si l'obstacle fait tomber le bâton ou non
+                let will_fall = rng.gen_bool(0.3); // 30% de chance de tomber
+                
+                if will_fall {
+                    // Force plus forte pour faire tomber
+                    let fall_force = force_magnitude * 3.0;
+                    if let Some(cart) = self.rigid_body_set.get_mut(self.cart_handle) {
+                        cart.apply_impulse(vector![fall_force * direction, 0.0, 0.0], true);
+                    }
+                    
+                    // Impulse supplémentaire sur le bâton
+                    if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
+                        stick.apply_impulse(
+                            vector![rng.gen_range(-20.0..20.0), 0.0, rng.gen_range(-20.0..20.0)],
+                            true
+                        );
+                    }
+                } else {
+                    // Force modérée qui maintient l'équilibre
+                    if let Some(cart) = self.rigid_body_set.get_mut(self.cart_handle) {
+                        cart.apply_impulse(vector![force_magnitude * direction, 0.0, 0.0], true);
+                    }
+                    
+                    // Correction stabilisatrice pour le bâton
+                    if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
+                        let rotation = stick.rotation();
+                        let angle_from_vertical = rotation.angle();
+                        
+                        // Couple correcteur pour redresser le bâton
+                        let correction_torque = -angle_from_vertical * 15.0;
+                        stick.apply_torque_impulse(
+                            vector![correction_torque, 0.0, correction_torque],
+                            true
+                        );
+                    }
+                }
+            }
+            
+            // Amortissement léger pour éviter oscillations infinies
+            if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
+                let angular_vel = stick.angvel();
+                stick.set_angvel(angular_vel * 0.995, true);
+            }
+            
+            // Simulation physique
+            let gravity = vector![0.0, -9.81, 0.0];
+            let integration_parameters = IntegrationParameters {
+                dt: self.time_step as Real,
+                ..Default::default()
+            };
+            
+            self.physics_pipeline.step(
+                &gravity,
+                &integration_parameters,
+                &mut self.island_manager,
+                &mut self.broad_phase,
+                &mut self.narrow_phase,
+                &mut self.rigid_body_set,
+                &mut self.collider_set,
+                &mut self.impulse_joint_set,
+                &mut self.multibody_joint_set,
+                &mut self.ccd_solver,
+                Some(&mut self.query_pipeline),
+                &(),
+                &(),
+            );
+            
+            // Enregistrer l'angle du bâton par rapport à la verticale
+            if let Some(stick) = self.rigid_body_set.get(self.stick_handle) {
+                let rotation = stick.rotation();
+                let angle = rotation.angle().to_degrees();
+                angles.push(angle);
+            }
+        }
+        
+        angles
+    }
+    
+    /// Vérifie si le bâton est tombé (angle > 45 degrés)
+    pub fn has_fallen(&self) -> bool {
+        if let Some(stick) = self.rigid_body_set.get(self.stick_handle) {
+            let angle = stick.rotation().angle().to_degrees();
+            angle.abs() > 45.0
+        } else {
+            false
         }
     }
 }
 
-impl Chariot {
-  pub fn new() -> Self {
-    let weight_g;
-  }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_simulation() {
+        let mut sim = BalanceStickAnimation::new(5.0);
+        let angles = sim.run();
+        
+        println!("Simulation terminée avec {} échantillons", angles.len());
+        println!("Le bâton est tombé: {}", sim.has_fallen());
+        println!("Angle final: {:.2}°", angles.last().unwrap_or(&0.0));
+    }
 }
+
+fn main() {
+    println!("=== Simulateur de Bâton en Équilibre ===\n");
+    
+    // Simulation de 10 secondes
+    let mut simulation = BalanceStickAnimation::new(10.0);
+    println!("Démarrage de la simulation (10 secondes)...\n");
+    
+    let angles = simulation.run();
+    
+    println!("\n=== Résultats ===");
+    println!("Nombre d'échantillons: {}", angles.len());
+    println!("Angle initial: {:.2}°", angles.first().unwrap_or(&0.0));
+    println!("Angle final: {:.2}°", angles.last().unwrap_or(&0.0));
+    println!("Angle maximum: {:.2}°", angles.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+    println!("Le bâton est tombé: {}", simulation.has_fallen());
+    
+    // Afficher quelques échantillons
+    println!("\nÉchantillons d'angles (tous les 60 frames):");
+    for (i, angle) in angles.iter().enumerate().step_by(60) {
+        println!("  t={:.2}s: {:.2}°", i as f64 / 60.0, angle);
+    }
+}
+
+
+Est ce que ce code de pendule inversé est assez realiste pour entrainer un ia sur la biomécanique ?
