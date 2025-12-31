@@ -229,6 +229,3 @@ fn main() {
         println!("  t={:.2}s: {:.2}°", i as f64 / 60.0, angle);
     }
 }
-
-
-Est ce que ce code de pendule inversé est assez realiste pour entrainer un ia sur la biomécanique ?
