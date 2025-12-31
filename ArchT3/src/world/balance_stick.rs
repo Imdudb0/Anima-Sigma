@@ -14,7 +14,7 @@ struct Chariot {
 }
 
 pub struct BalanceStickAnimation {
-  stick: PVC,
+  pvc: PVC,
   chariot: Chariot,
 }
 
