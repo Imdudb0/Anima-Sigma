@@ -180,6 +180,68 @@ impl BalanceStickAnimation {
         
         angles
     }
+
+    pub fn run_for_signature(&mut self) -> Vec<f64> {
+        let mut data_stream = Vec::new();
+    let mut rng = rand::thread_rng();
+    let num_steps = (self.duration / self.time_step) as usize;
+    
+    // Paramètres d'intégration haute précision
+    let mut integration_parameters = IntegrationParameters::default();
+    integration_parameters.dt = self.time_step as Real;
+    integration_parameters.num_solver_iterations = std::num::NonZeroUsize::new(12).unwrap();
+
+    for step in 0..num_steps {
+        // 1. Détermination de la force appliquée (u)
+        // On enregistre la force brute pour que le moteur FOL puisse induire F=ma
+        let mut applied_force = 0.0;
+        
+        if rng.gen_bool(0.05) { // Perturbation aléatoire
+            applied_force = rng.gen_range(-20.0..20.0);
+            if let Some(cart) = self.rigid_body_set.get_mut(self.cart_handle) {
+                cart.apply_impulse(vector![applied_force, 0.0, 0.0], true);
+            }
+        }
+
+        // 2. Step de physique
+        self.physics_pipeline.step(
+            &vector![0.0, -9.81, 0.0],
+            &integration_parameters,
+            &mut self.island_manager,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.rigid_body_set,
+            &mut self.collider_set,
+            &mut self.impulse_joint_set,
+            &mut self.multibody_joint_set,
+            &mut self.ccd_solver,
+            None,
+            &(),
+            &(),
+        );
+
+        // 3. Extraction de l'Espace des Phases (Phase Space)
+        if let (Some(cart), Some(stick)) = (
+            self.rigid_body_set.get(self.cart_handle),
+            self.rigid_body_set.get(self.stick_handle)
+        ) {
+            let cart_x = cart.translation().x as f64;
+            let cart_v = cart.linvel().x as f64;
+            let stick_angle = stick.rotation().angle() as f64;
+            let stick_av = stick.angvel().x as f64; // Vitesse angulaire sur l'axe X (pivot)
+
+            // Structure du vecteur : [x, theta, dx/dt, dtheta/dt, F]
+            // Cette structure d=5 est optimale pour l'intégrale itérée de Chen
+            data_stream.push(cart_x);      // Dimension 1
+            data_stream.push(stick_angle); // Dimension 2
+            data_stream.push(cart_v);      // Dimension 3
+            data_stream.push(stick_av);     // Dimension 4
+            data_stream.push(applied_force); // Dimension 5 (Contrôle/Causalité)
+            }
+        }
+    
+        data_stream
+    }
     
     /// Vérifie si le bâton est tombé (angle > 45 degrés)
     pub fn has_fallen(&self) -> bool {
