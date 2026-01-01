@@ -82,119 +82,21 @@ impl BalanceStickAnimation {
             time_step: 1.0 / 60.0,
         }
     }
-    
-    /// Exécute la simulation et retourne les données d'angle du bâton
+
     pub fn run(&mut self) -> Vec<f64> {
-        let mut angles = Vec::new();
+        let mut data_stream = Vec::new();
         let mut rng = rand::thread_rng();
         let num_steps = (self.duration / self.time_step) as usize;
-        
-        let mut obstacle_timer = 0.0;
-        let obstacle_interval = rng.gen_range(0.5..2.0);
-        
-        for step in 0..num_steps {
-            let current_time = step as f64 * self.time_step;
-            obstacle_timer += self.time_step;
-            
-            // Appliquer des perturbations aléatoires (obstacles)
-            if obstacle_timer >= obstacle_interval {
-                obstacle_timer = 0.0;
-                
-                let force_magnitude = rng.gen_range(10.0..50.0);
-                let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
-                
-                // Décider si l'obstacle fait tomber le bâton ou non
-                let will_fall = rng.gen_bool(0.3); // 30% de chance de tomber
-                
-                if will_fall {
-                    // Force plus forte pour faire tomber
-                    let fall_force = force_magnitude * 3.0;
-                    if let Some(cart) = self.rigid_body_set.get_mut(self.cart_handle) {
-                        cart.apply_impulse(vector![fall_force * direction, 0.0, 0.0], true);
-                    }
-                    
-                    // Impulse supplémentaire sur le bâton
-                    if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
-                        stick.apply_impulse(
-                            vector![rng.gen_range(-20.0..20.0), 0.0, rng.gen_range(-20.0..20.0)],
-                            true
-                        );
-                    }
-                } else {
-                    // Force modérée qui maintient l'équilibre
-                    if let Some(cart) = self.rigid_body_set.get_mut(self.cart_handle) {
-                        cart.apply_impulse(vector![force_magnitude * direction, 0.0, 0.0], true);
-                    }
-                    
-                    // Correction stabilisatrice pour le bâton
-                    if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
-                        let rotation = stick.rotation();
-                        let angle_from_vertical = rotation.angle();
-                        
-                        // Couple correcteur pour redresser le bâton
-                        let correction_torque = -angle_from_vertical * 15.0;
-                        stick.apply_torque_impulse(
-                            vector![correction_torque, 0.0, correction_torque],
-                            true
-                        );
-                    }
-                }
-            }
-            
-            // Amortissement léger pour éviter oscillations infinies
-            if let Some(stick) = self.rigid_body_set.get_mut(self.stick_handle) {
-                let angular_vel = stick.angvel();
-                stick.set_angvel(angular_vel * 0.995, true);
-            }
-            
-            // Simulation physique
-            let gravity = vector![0.0, -9.81, 0.0];
-            let integration_parameters = IntegrationParameters {
-                dt: self.time_step as Real,
-                ..Default::default()
-            };
-            
-            self.physics_pipeline.step(
-                &gravity,
-                &integration_parameters,
-                &mut self.island_manager,
-                &mut self.broad_phase,
-                &mut self.narrow_phase,
-                &mut self.rigid_body_set,
-                &mut self.collider_set,
-                &mut self.impulse_joint_set,
-                &mut self.multibody_joint_set,
-                &mut self.ccd_solver,
-                Some(&mut self.query_pipeline),
-                &(),
-                &(),
-            );
-            
-            // Enregistrer l'angle du bâton par rapport à la verticale
-            if let Some(stick) = self.rigid_body_set.get(self.stick_handle) {
-                let rotation = stick.rotation();
-                let angle = rotation.angle().to_degrees();
-                angles.push(angle);
-            }
-        }
-        
-        angles
-    }
-
-    pub fn run_for_signature(&mut self) -> Vec<f64> {
-        let mut data_stream = Vec::new();
-    let mut rng = rand::thread_rng();
-    let num_steps = (self.duration / self.time_step) as usize;
     
-    // Paramètres d'intégration haute précision
-    let mut integration_parameters = IntegrationParameters::default();
-    integration_parameters.dt = self.time_step as Real;
-    integration_parameters.num_solver_iterations = std::num::NonZeroUsize::new(12).unwrap();
+        // Paramètres d'intégration haute précision
+        let mut integration_parameters = IntegrationParameters::default();
+        integration_parameters.dt = self.time_step as Real;
+        integration_parameters.num_solver_iterations = std::num::NonZeroUsize::new(12).unwrap();
 
-    for step in 0..num_steps {
-        // 1. Détermination de la force appliquée (u)
-        // On enregistre la force brute pour que le moteur FOL puisse induire F=ma
-        let mut applied_force = 0.0;
+        for step in 0..num_steps {
+            // 1. Détermination de la force appliquée (u)
+            // On enregistre la force brute pour que le moteur FOL puisse induire F=ma
+            let mut applied_force = 0.0;
         
         if rng.gen_bool(0.05) { // Perturbation aléatoire
             applied_force = rng.gen_range(-20.0..20.0);
