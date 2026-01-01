@@ -6,6 +6,7 @@ pub struct PrototypicalNeuralUnit {
     pub activation_threshold: f64,
     pub current_activation_energy: f64,
     pub link: Vec<String>,
+    pub symbolic_label: String,
 }
 
 impl PrototypicalNeuralUnit {
