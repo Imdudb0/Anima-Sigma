@@ -3,11 +3,7 @@ use crate::perception::universal_vector::{UniversalVector, Signature, Gradient, 
 pub struct UniversalTransducer;
 
 impl UniversalTransducer {
-    pub fn process(raw: &[f64], times: Option<Vec<f64>>) -> UniversalVector {
-        Self::create_vector_from_slice(raw, times)
-    }
-
-    /// Version Segmentée (Zero-Crossing)
+    /// Segmentée (Zero-Crossing)
     /// Découpe le signal quand la dynamique s'inverse
     pub fn segment_and_process(raw: &[f64], times: &Vec<f64>) -> Vec<UniversalVector> {
         if raw.len() < 2 { return vec![]; }
