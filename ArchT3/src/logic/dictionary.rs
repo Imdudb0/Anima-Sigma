@@ -13,3 +13,7 @@ pub static CONCEPTS: LazyLock<Mutex<Dictionary>> = LazyLock::new(|| {
         concepts: HashMap::new(),
     })
 });
+
+impl Dictionary {
+    
+}
