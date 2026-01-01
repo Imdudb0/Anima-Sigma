@@ -1,4 +1,4 @@
-Use rapier3d::prelude::*;
+use rapier3d::prelude::*;
 use rand::Rng;
 
 /// Structure représentant l'animation d'un bâton en équilibre sur un chariot
