@@ -37,78 +37,47 @@ pub struct Metadata {
 }
 
 impl UniversalVector {
-    /// Résonance Directionnelle (Cosinus Similarité).
-    /// Retourne une valeur entre -1.0 et 1.0.
-    /// 1.0 signifie que les vecteurs codent exactement la même direction/forme (à une échelle près).
-    /// 0.0 signifie qu'ils sont orthogonaux (aucune corrélation).
     pub fn resonance_directional(&self, other: &UniversalVector) -> f64 {
         let dot = self.signature.dot(&other.signature);
         let mag_self = self.signature.magnitude();
         let mag_other = other.signature.magnitude();
 
         if mag_self == 0.0 || mag_other == 0.0 {
-            return 0.0; // Évite la division par zéro
+            return 0.0;
         }
-
-        // R = <A, B> / (||A|| * ||B||)
         dot / (mag_self * mag_other)
     }
 
-    /// Résonance Structurelle (Noyau Gaussien / RBF).
-    /// Retourne une valeur entre 0.0 et 1.0.
-    /// Utilise la distance Euclidienne pour déterminer la proximité.
-    /// Utile pour les mécanismes d'attention ou de clustering.
-    ///
-    /// * `sigma` : Sensibilité de la résonance (ex: 1.0). Plus sigma est petit, plus la résonance chute vite avec la distance.
     pub fn resonance_structural(&self, other: &UniversalVector, sigma: f64) -> f64 {
-        // On utilise la méthode distance() qui existe déjà dans Signature
         let dist = self.signature.distance(&other.signature); 
-
-        // R = exp(- distance^2 / (2 * sigma^2))
         (- (dist * dist) / (2.0 * sigma * sigma)).exp()
     }
 
-    /// Résonance Hybride.
-    /// Combine l'alignement directionnel et la proximité.
-    /// Pondère la qualité de la forme et sa magnitude relative.
     pub fn resonance_full(&self, other: &UniversalVector, sensitivity: f64) -> f64 {
         let dir = self.resonance_directional(other);
         let struc = self.resonance_structural(other, sensitivity);
-
-        // On ne garde que la résonance positive pour le mix
         let dir_clamped = dir.max(0.0);
-
-        (dir_clamped * struc).sqrt() // Moyenne géométrique
+        (dir_clamped * struc).sqrt()
     }
 
-    /// Normalise le vecteur universel in-place.
-    /// Après cet appel, `resonance_directional` avec ce vecteur sera plus stable,
-    /// et la comparaison de formes de tailles différentes deviendra possible.
     pub fn normalize(&mut self) {
         self.signature.normalize();
-
-        // Note : On ne normalise généralement pas le gradient ou les métadonnées
-        // car ils portent des informations physiques absolues (vitesse, temps).
     }
 
-    /// Crée une copie normalisée (style fonctionnel)
     pub fn to_normalized(&self) -> Self {
         let mut copy = self.clone();
         copy.normalize();
         copy
     }
 
-    /// Met à jour le prototype entier (Signature + Gradient)
     pub fn blend(&mut self, target: &UniversalVector, alpha: f64) {
         self.signature.blend(&target.signature, alpha);
-        // Note: On pourrait aussi blender le gradient, mais souvent 
-        // on veut que le gradient reste une propriété de l'instance, pas du prototype.
-        // Pour l'instant, on se concentre sur la FORME (Signature).
     }
 
     pub fn zero() -> Self {
         UniversalVector {
-            signature: Signature::zero(),
+            // Fix: Provided '0' as default dimension
+            signature: Signature::zero(0),
             gradient: Gradient::zero(),
             metadata: Metadata::zero(),
         }
@@ -116,30 +85,27 @@ impl UniversalVector {
 }
 
 impl Signature {
-    /// Calcule la signature d'un segment de droite dans un espace à d dimensions.
-    /// Pour un segment droit, les intégrales itérées sont simplement les produits 
-    /// tensoriels divisés par la factorielle de l'ordre.
     pub fn from_segment(dt: f64, dX: &[f64]) -> Self {
-        let dim = dX.len();
         // Pour inclure le temps comme une dimension, on l'ajoute souvent au vecteur
         let mut d = vec![dt];
         d.extend_from_slice(dX);
         let actual_dim = d.len();
 
         let mut sig = Signature {
-            level1: (dt, dX[0]), // on stocke les deux premiers
+            dim: actual_dim, // Fix: Added missing field `dim`
+            level1: d.clone(), // Fix: Changed from tuple (dt, dX[0]) to Vec<f64>
             level2: vec![vec![0.0; actual_dim]; actual_dim],
             level3: vec![vec![vec![0.0; actual_dim]; actual_dim]; actual_dim],
         };
 
-        // Niveau 2 : (d_i * d_j) / 2!
+        // Niveau 2
         for i in 0..actual_dim {
             for j in 0..actual_dim {
                 sig.level2[i][j] = d[i] * d[j] / 2.0;
             }
         }
 
-        // Niveau 3 : (d_i * d_j * d_k) / 3!
+        // Niveau 3
         for i in 0..actual_dim {
             for j in 0..actual_dim {
                 for k in 0..actual_dim {
@@ -150,21 +116,17 @@ impl Signature {
         sig
     }
 
-    /// Identité de Chen : S(ab) = S(a) ⊗ S(b)
-    /// Adapté dynamiquement à n'importe quelle dimensionnalité.
     pub fn combine(&self, other: &Signature) -> Signature {
         assert_eq!(self.dim, other.dim, "Dimensions must match to combine signatures");
         let d = self.dim;
         let mut res = Signature::zero(d);
 
-        // --- NIVEAU 1 : Linéarité ---
-        // S(ab)^i = S(a)^i + S(b)^i
+        // NIVEAU 1
         for i in 0..d {
             res.level1[i] = self.level1[i] + other.level1[i];
         }
 
-        // --- NIVEAU 2 : Aires et Corrélations ---
-        // S(ab)^ij = S(a)^ij + S(b)^ij + (S(a)^i * S(b)^j)
+        // NIVEAU 2
         for i in 0..d {
             for j in 0..d {
                 res.level2[i][j] = self.level2[i][j] 
@@ -173,8 +135,7 @@ impl Signature {
             }
         }
 
-        // --- NIVEAU 3 : Courbure et Volume de Lie ---
-        // S(ab)^ijk = S(a)^ijk + S(b)^ijk + (S(a)^i * S(b)^jk) + (S(a)^ij * S(b)^k)
+        // NIVEAU 3
         for i in 0..d {
             for j in 0..d {
                 for k in 0..d {
@@ -244,48 +205,23 @@ impl Signature {
         }
     }
 
-    /// Calcule la magnitude (Norme L2) de la signature.
-    /// ||A|| = sqrt(<A, A>)
     pub fn magnitude(&self) -> f64 {
         self.dot(self).sqrt()
     }
 
-    pub fn resonance_directional(&self, other: &Signature) -> f64 {
-        let dot = self.dot(&other);
-        let mag_self = self.magnitude();
-        let mag_other = other.magnitude();
-
-        if mag_self == 0.0 || mag_other == 0.0 {
-            return 0.0; // Évite la division par zéro
-        }
-
-        // R = <A, B> / (||A|| * ||B||)
-        dot / (mag_self * mag_other)
-    }
-
-    /// Normalise la signature pour que sa magnitude (L2) soit égale à 1.0.
-    /// Transforme le vecteur en "vecteur directionnel" pur (forme pure),
-    /// en éliminant l'information d'amplitude absolue.
     pub fn normalize(&mut self) {
         let mag = self.magnitude();
-
-        // Protection contre la division par zéro pour les vecteurs nuls
         if mag > std::f64::EPSILON {
             let inv_mag = 1.0 / mag;
             self.scale(inv_mag);
         }
     }
 
-    /// Calcule la distance entre deux signatures après normalisation.
-    /// Renvoie une valeur entre 0.0 (identique) et ~2.0 (opposé).
-    /// C'est invariant à l'échelle du signal.
     pub fn normalized_distance(&self, other: &Signature) -> f64 {
         let mut s1 = self.clone();
         let mut s2 = other.clone();
-
         s1.normalize();
         s2.normalize();
-
         s1.distance(&s2)
     }
 
