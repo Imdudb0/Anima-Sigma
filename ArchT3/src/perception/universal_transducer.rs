@@ -61,50 +61,11 @@ impl UniversalTransducer {
         vectors
     }
 
-    fn create_vector_from_slice(raw: &[f64], times: Option<Vec<f64>>) -> UniversalVector {
-        assert!(!raw.is_empty(), "Raw data cannot be empty");
-
-        // Calcul des incréments (Deltas)
-        let deltas: Vec<(f64, f64)> = match times {
-            Some(t) => {
-                assert_eq!(t.len(), raw.len());
-                raw.windows(2).zip(t.windows(2))
-                    .map(|(w_raw, w_time)| (w_time[1] - w_time[0], w_raw[1] - w_raw[0]))
-                    .collect()
-            },
-            None => raw.windows(2).map(|w| (1.0, w[1] - w[0])).collect(),
-        };
-
-        // Accumulation via l'identité de Chen itérative
-        // On part de l'élément neutre (Identité)
-        let mut current_signature = Signature::zero();
-
-        for (dt, dx) in deltas.clone() {
-            // 1. On calcule la signature géométrique locale du segment
-            // (contient les termes 1/2 et 1/6 nécessaires à la convergence)
-            let segment_signature = Signature::from_segment(dt, dx);
-
-            // 2. On combine avec la signature accumulée précédente
-            // Pour optimiser, on pourrait inliner le code de combine ici,
-            // mais l'appel de fonction garantit la réussite du test de cohérence.
-            current_signature = current_signature.combine(&segment_signature);
-        }
-
-        let gradient = Gradient::update(deltas);
-
-        UniversalVector {
-            signature: current_signature,
-            gradient,
-            metadata: Metadata::zero(),
-        }
-    }
-
-    fn create_vector_from_slice_multidim(raw: &[Vec<f64>], times: Option<Vec<f64>>) -> UniversalVector {
+    fn create_vector_from_slice(raw: &[Vec<f64>], times: Option<Vec<f64>>) -> UniversalVector {
     assert!(!raw.is_empty(), "Raw data cannot be empty");
     let dim = raw[0].len();
 
     // 1. Calcul des incréments multidimensionnels (Deltas)
-    // Chaque delta est maintenant un Vec<f64> de taille d
     let deltas: Vec<(f64, Vec<f64>)> = match times {
         Some(t) => {
             assert_eq!(t.len(), raw.len());
@@ -127,19 +88,16 @@ impl UniversalTransducer {
     };
 
     // 2. Accumulation via l'identité de Chen
-    // Signature::zero() doit maintenant être capable de s'initialiser pour une dimension d
-    let mut current_signature = Signature::identity(dim);
+    let mut current_signature = Signature::zero(dim);
 
     for (dt, dX) in deltas.iter() {
-        // Signature::from_segment calcule maintenant les produits tensoriels
-        // dX_i * dX_j pour l'ordre 2, dX_i * dX_j * dX_k pour l'ordre 3, etc.
-        let segment_signature = Signature::from_multidim_segment(*dt, dX);
+        let segment_signature = Signature::from_segment(*dt, dX);
         
         // La combinaison utilise le produit tensoriel (Chen's product)
         current_signature = current_signature.combine(&segment_signature);
         }
 
-        let gradient = Gradient::update_multidim(&deltas);
+        let gradient = Gradient::update(&deltas);
 
         UniversalVector {
             signature: current_signature,
