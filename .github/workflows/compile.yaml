@@ -1,4 +1,4 @@
-name: Run l
+name: Run cr
 
 on:
   workflow_dispatch
@@ -15,14 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build l
-        run: cargo build --verbose
-
-      - name: Run l application
-        run: cargo run --verbose
-
-      #- name: Run test
-        #run: cargo test
+      - name: Build And Run
+        working-directory: ArchT3
+        run: | 
+          cargo build --verbose
+          cargo run --verbose
 
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
