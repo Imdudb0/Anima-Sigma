@@ -17,7 +17,7 @@ pub struct Signature {
 
 #[derive(Debug, PartialEq, Clone,  Serialize,  Deserialize)]
 pub struct Gradient {
-    data: Vec<(f64, f64)>,
+    data: Vec<(f64, Vec<f64>)>,
 }
 
 #[derive(Debug, PartialEq, Clone,  Serialize,  Deserialize)]
