@@ -1,1 +1,33 @@
-.
+name: Run 4rchT3
+
+on:
+  workflow_dispatch
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build 4rchT3
+        run: cargo build --verbose
+
+      - name: Run 4rchT3 application
+        run: cargo run --verbose
+
+      #- name: Run test
+        #run: cargo test
+
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(data): auto-update swarm initialization data"
+          file_pattern: src/memory/knowledge/**
+          #file_pattern: src/world_1d_perfide.json
+          branch: ${{ github.ref_name }}
