@@ -145,39 +145,37 @@ impl Signature {
     }
 
     /// Identité de Chen : S(ab) = S(a) ⊗ S(b)
-    /// Cette fonction est l'unique source de vérité algébrique.
+    /// Adapté dynamiquement à n'importe quelle dimensionnalité.
     pub fn combine(&self, other: &Signature) -> Signature {
-        let mut res = Signature::zero();
+        assert_eq!(self.dim, other.dim, "Dimensions must match to combine signatures");
+        let d = self.dim;
+        let mut res = Signature::zero(d);
 
-        // --- NIVEAU 1 ---
-        // S(ab)^1 = S(a)^1 + S(b)^1
-        res.level1.0 = self.level1.0 + other.level1.0;
-        res.level1.1 = self.level1.1 + other.level1.1;
+        // --- NIVEAU 1 : Linéarité ---
+        // S(ab)^i = S(a)^i + S(b)^i
+        for i in 0..d {
+            res.level1[i] = self.level1[i] + other.level1[i];
+        }
 
-        let sa1 = [self.level1.0, self.level1.1];
-        let sb1 = [other.level1.0, other.level1.1];
-
-        // --- NIVEAU 2 ---
-        // S(ab)^2 = S(a)^2 + S(b)^2 + (S(a)^1 ⊗ S(b)^1)
-        for i in 0..2 {
-            for j in 0..2 {
+        // --- NIVEAU 2 : Aires et Corrélations ---
+        // S(ab)^ij = S(a)^ij + S(b)^ij + (S(a)^i * S(b)^j)
+        for i in 0..d {
+            for j in 0..d {
                 res.level2[i][j] = self.level2[i][j] 
                                  + other.level2[i][j] 
-                                 + (sa1[i] * sb1[j]);
+                                 + (self.level1[i] * other.level1[j]);
             }
         }
 
-        // --- NIVEAU 3 ---
-        // S(ab)^3 = S(a)^3 + S(b)^3 
-        //         + (S(a)^1 ⊗ S(b)^2) 
-        //         + (S(a)^2 ⊗ S(b)^1)
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
+        // --- NIVEAU 3 : Courbure et Volume de Lie ---
+        // S(ab)^ijk = S(a)^ijk + S(b)^ijk + (S(a)^i * S(b)^jk) + (S(a)^ij * S(b)^k)
+        for i in 0..d {
+            for j in 0..d {
+                for k in 0..d {
                     res.level3[i][j][k] = self.level3[i][j][k] 
                                         + other.level3[i][j][k]
-                                        + (sa1[i] * other.level2[j][k])
-                                        + (self.level2[i][j] * sb1[k]);
+                                        + (self.level1[i] * other.level2[j][k])
+                                        + (self.level2[i][j] * other.level1[k]);
                 }
             }
         }
