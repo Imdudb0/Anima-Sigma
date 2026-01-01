@@ -5,3 +5,12 @@ pub struct PrototypicalNeuralUnit {
     pub activation_threshold: f64,
     pub current_activation_energy: f64,
 }
+
+impl PrototypicalNeuralUnit {
+    pub fn new(prototype_weight: UniversalVector,  activation_threshold: f64) -> Self {
+        Self {
+            prototype_weight,
+            activation_threshold,
+        }
+    }
+}
