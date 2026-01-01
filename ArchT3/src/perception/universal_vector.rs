@@ -189,60 +189,59 @@ impl Signature {
         res
     }
 
-    /// Calcule la distance L2 (Euclidienne) entre deux signatures.
-    /// Aplatit les niveaux 1, 2 et 3 en un vecteur unique.
-    pub fn distance(&self, other: &Signature) -> f64 {
-        let mut sum_sq = 0.0;
-
-        // Level 1
-        sum_sq += (self.level1.0 - other.level1.0).powi(2);
-        sum_sq += (self.level1.1 - other.level1.1).powi(2);
-
-        // Level 2
-        for i in 0..2 {
-            for j in 0..2 {
-                sum_sq += (self.level2[i][j] - other.level2[i][j]).powi(2);
-            }
-        }
-
-        // Level 3
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
-                    sum_sq += (self.level3[i][j][k] - other.level3[i][j][k]).powi(2);
-                }
-            }
-        }
-
-        sum_sq.sqrt()
-    }
-
-    /// Calcule le produit scalaire (Dot Product) entre deux signatures.
-    /// <A, B> = Σ A_i * B_i
     pub fn dot(&self, other: &Self) -> f64 {
         let mut sum = 0.0;
-
-        // Niveau 1
-        sum += self.level1.0 * other.level1.0;
-        sum += self.level1.1 * other.level1.1;
-
-        // Niveau 2
-        for i in 0..2 {
-            for j in 0..2 {
+        let d = self.dim;
+        for i in 0..d {
+            sum += self.level1[i] * other.level1[i];
+            for j in 0..d {
                 sum += self.level2[i][j] * other.level2[i][j];
-            }
-        }
-
-        // Niveau 3
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
+                for k in 0..d {
                     sum += self.level3[i][j][k] * other.level3[i][j][k];
                 }
             }
         }
-
         sum
+    }
+
+    pub fn distance(&self, other: &Self) -> f64 {
+        let mut sum_sq = 0.0;
+        let d = self.dim;
+        for i in 0..d {
+            sum_sq += (self.level1[i] - other.level1[i]).powi(2);
+            for j in 0..d {
+                sum_sq += (self.level2[i][j] - other.level2[i][j]).powi(2);
+                for k in 0..d {
+                    sum_sq += (self.level3[i][j][k] - other.level3[i][j][k]).powi(2);
+                }
+            }
+        }
+        sum_sq.sqrt()
+    }
+
+    pub fn scale(&mut self, s: f64) {
+        for i in 0..self.dim {
+            self.level1[i] *= s;
+            for j in 0..self.dim {
+                self.level2[i][j] *= s;
+                for k in 0..self.dim {
+                    self.level3[i][j][k] *= s;
+                }
+            }
+        }
+    }
+
+    pub fn blend(&mut self, target: &Signature, alpha: f64) {
+        let a = alpha.clamp(0.0, 1.0);
+        for i in 0..self.dim {
+            self.level1[i] += (target.level1[i] - self.level1[i]) * a;
+            for j in 0..self.dim {
+                self.level2[i][j] += (target.level2[i][j] - self.level2[i][j]) * a;
+                for k in 0..self.dim {
+                    self.level3[i][j][k] += (target.level3[i][j][k] - self.level3[i][j][k]) * a;
+                }
+            }
+        }
     }
 
     /// Calcule la magnitude (Norme L2) de la signature.
@@ -264,30 +263,6 @@ impl Signature {
         dot / (mag_self * mag_other)
     }
 
-    /// Multiplie tous les termes de la signature par un scalaire `s`.
-    /// Utilisé pour la normalisation ou pour simuler un changement d'échelle.
-    pub fn scale(&mut self, s: f64) {
-        // Niveau 1
-        self.level1.0 *= s;
-        self.level1.1 *= s;
-
-        // Niveau 2
-        for i in 0..2 {
-            for j in 0..2 {
-                self.level2[i][j] *= s;
-            }
-        }
-
-        // Niveau 3
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
-                    self.level3[i][j][k] *= s;
-                }
-            }
-        }
-    }
-
     /// Normalise la signature pour que sa magnitude (L2) soit égale à 1.0.
     /// Transforme le vecteur en "vecteur directionnel" pur (forme pure),
     /// en éliminant l'information d'amplitude absolue.
@@ -298,34 +273,6 @@ impl Signature {
         if mag > std::f64::EPSILON {
             let inv_mag = 1.0 / mag;
             self.scale(inv_mag);
-        }
-    }
-
-    /// Mélange la signature actuelle avec une cible (target) selon un facteur alpha.
-    /// alpha = 0.0 -> On garde l'état actuel.
-    /// alpha = 1.0 -> On devient la cible.
-    /// Formule : S_new = S_old + alpha * (S_target - S_old)
-    pub fn blend(&mut self, target: &Signature, alpha: f64) {
-        let clamped_alpha = alpha.clamp(0.0, 1.0);
-
-        // Level 1
-        self.level1.0 += (target.level1.0 - self.level1.0) * clamped_alpha;
-        self.level1.1 += (target.level1.1 - self.level1.1) * clamped_alpha;
-
-        // Level 2
-        for i in 0..2 {
-            for j in 0..2 {
-                self.level2[i][j] += (target.level2[i][j] - self.level2[i][j]) * clamped_alpha;
-            }
-        }
-
-        // Level 3
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
-                    self.level3[i][j][k] += (target.level3[i][j][k] - self.level3[i][j][k]) * clamped_alpha;
-                }
-            }
         }
     }
 
@@ -344,6 +291,7 @@ impl Signature {
 
     pub fn zero(dim: usize) -> Self {
         Signature {
+            dim,
             level1: vec![0.0; dim],
             level2: vec![vec![0.0; dim]; dim],
             level3: vec![vec![vec![0.0; dim]; dim]; dim],
@@ -352,29 +300,22 @@ impl Signature {
 }
 
 impl Gradient {
-    /// Calcule le gradient multidimensionnel (Vitesse locale dans l'espace des phases)
     pub fn update(deltas: &[(f64, Vec<f64>)]) -> Self {
-        // Ici, on stocke la moyenne pondérée des incréments par dimension
-        let mut data = Vec::new();
-        for (dt, dX) in deltas {
-            // on prend le premier dX
-            data.push((*dt, dX[0])); 
-        }
-        Gradient { data }
+        Gradient { data: deltas.to_vec() }
+    }
+
+    pub fn magnitude(&self) -> f64 {
+        self.data.iter()
+            .map(|(dt, dx_vec)| {
+                let dx_sq_sum: f64 = dx_vec.iter().map(|x| x.powi(2)).sum();
+                dt.powi(2) + dx_sq_sum
+            })
+            .sum::<f64>()
+            .sqrt()
     }
 
     pub fn zero() -> Self {
         Gradient { data: Vec::new() }
-    }
-
-    /// Calcule la magnitude (Norme L2) globale du gradient.
-    /// Correspond à la racine carrée de la somme des carrés de tous les incréments (dt, dx).
-    /// ||G|| = sqrt( Σ (dt^2 + dx^2) )
-    pub fn magnitude(&self) -> f64 {
-        self.data.iter()
-            .map(|(dt, dx)| dt.powi(2) + dx.powi(2))
-            .sum::<f64>()
-            .sqrt()
     }
 }
 
