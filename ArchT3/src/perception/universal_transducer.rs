@@ -98,4 +98,53 @@ impl UniversalTransducer {
             metadata: Metadata::zero(),
         }
     }
+
+    fn create_vector_from_slice_multidim(raw: &[Vec<f64>], times: Option<Vec<f64>>) -> UniversalVector {
+    assert!(!raw.is_empty(), "Raw data cannot be empty");
+    let dim = raw[0].len();
+
+    // 1. Calcul des incréments multidimensionnels (Deltas)
+    // Chaque delta est maintenant un Vec<f64> de taille d
+    let deltas: Vec<(f64, Vec<f64>)> = match times {
+        Some(t) => {
+            assert_eq!(t.len(), raw.len());
+            raw.windows(2).zip(t.windows(2))
+                .map(|(w_raw, w_time)| {
+                    let dt = w_time[1] - w_time[0];
+                    let dX = w_raw[1].iter().zip(w_raw[0].iter())
+                                     .map(|(x1, x0)| x1 - x0)
+                                     .collect();
+                    (dt, dX)
+                })
+                .collect()
+        },
+        None => raw.windows(2).map(|w| {
+            let dX = w[1].iter().zip(w[0].iter())
+                         .map(|(x1, x0)| x1 - x0)
+                         .collect();
+            (1.0, dX)
+        }).collect(),
+    };
+
+    // 2. Accumulation via l'identité de Chen
+    // Signature::zero() doit maintenant être capable de s'initialiser pour une dimension d
+    let mut current_signature = Signature::identity(dim);
+
+    for (dt, dX) in deltas.iter() {
+        // Signature::from_segment calcule maintenant les produits tensoriels
+        // dX_i * dX_j pour l'ordre 2, dX_i * dX_j * dX_k pour l'ordre 3, etc.
+        let segment_signature = Signature::from_multidim_segment(*dt, dX);
+        
+        // La combinaison utilise le produit tensoriel (Chen's product)
+        current_signature = current_signature.combine(&segment_signature);
+        }
+
+        let gradient = Gradient::update_multidim(&deltas);
+
+        UniversalVector {
+            signature: current_signature,
+            gradient,
+            metadata: Metadata::zero(),
+        }
+    }
 }
