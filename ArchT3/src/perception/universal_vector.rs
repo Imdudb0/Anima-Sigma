@@ -116,21 +116,10 @@ impl UniversalVector {
 }
 
 impl Signature {
-impl Signature {
-    /// Retourne l'élément neutre de l'algèbre (Identité pour le produit de Chen)
-    /// dim : le nombre de dimensions du signal d'entrée (ex: 5 pour votre pendule)
-    pub fn identity(dim: usize) -> Self {
-        Signature {
-            level1: (0.0, 0.0), // Note: Dans une version pure, level1 serait un Vec de taille dim
-            level2: vec![vec![0.0; dim]; dim], 
-            level3: vec![vec![vec![0.0; dim]; dim]; dim],
-        }
-    }
-
     /// Calcule la signature d'un segment de droite dans un espace à d dimensions.
     /// Pour un segment droit, les intégrales itérées sont simplement les produits 
     /// tensoriels divisés par la factorielle de l'ordre.
-    pub fn from_multidim_segment(dt: f64, dX: &[f64]) -> Self {
+    pub fn from_segment(dt: f64, dX: &[f64]) -> Self {
         let dim = dX.len();
         // Pour inclure le temps comme une dimension, on l'ajoute souvent au vecteur
         let mut d = vec![dt];
@@ -138,7 +127,7 @@ impl Signature {
         let actual_dim = d.len();
 
         let mut sig = Signature {
-            level1: (dt, dX[0]), // Rétro-compatibilité : on stocke les deux premiers
+            level1: (dt, dX[0]), // on stocke les deux premiers
             level2: vec![vec![0.0; actual_dim]; actual_dim],
             level3: vec![vec![vec![0.0; actual_dim]; actual_dim]; actual_dim],
         };
@@ -159,36 +148,6 @@ impl Signature {
             }
         }
         sig
-    }
-}
-
-
-    /// Crée la signature exacte d'un segment linéaire (dx, dt)
-    /// C'est crucial pour l'invariance au sous-échantillonnage.
-    /// Un segment droit contient des termes d'ordre supérieur (1/2, 1/6) non nuls.
-    pub fn from_segment(dt: f64, dx: f64) -> Self {
-        let mut v = Self::zero();
-        let vec = [dt, dx];
-
-        // Niveau 1 : Le vecteur lui-même
-        v.level1 = (dt, dx);
-
-        // Niveau 2 : d ⊗ d / 2 (Intégration triangle sur segment droit)
-        for i in 0..2 {
-            for j in 0..2 {
-                v.level2[i][j] = vec[i] * vec[j] * 0.5;
-            }
-        }
-
-        // Niveau 3 : d ⊗ d ⊗ d / 6
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
-                    v.level3[i][j][k] = vec[i] * vec[j] * vec[k] / 6.0;
-                }
-            }
-        }
-        v
     }
 
     /// Identité de Chen : S(ab) = S(a) ⊗ S(b)
