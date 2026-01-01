@@ -1,0 +1,7 @@
+[package]
+name = "Anima-Sigma"
+version = "0.1.0"
+authors = ["@imdudb", "hacksimp"]
+edition = "2024"
+
+[dependencies]
