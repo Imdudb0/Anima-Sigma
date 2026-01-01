@@ -1,4 +1,4 @@
-name: Run 4rchT3
+name: Run l
 
 on:
   workflow_dispatch
@@ -15,10 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build 4rchT3
+      - name: Build l
         run: cargo build --verbose
 
-      - name: Run 4rchT3 application
+      - name: Run l application
         run: cargo run --verbose
 
       #- name: Run test
