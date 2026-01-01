@@ -11,6 +11,7 @@ impl PrototypicalNeuralUnit {
         Self {
             prototype_weight,
             activation_threshold,
+            current_activation_energy: 0.0,
         }
     }
 }
