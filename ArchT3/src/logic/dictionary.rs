@@ -15,5 +15,7 @@ pub static CONCEPTS: LazyLock<Mutex<Dictionary>> = LazyLock::new(|| {
 });
 
 impl Dictionary {
-    
+    pub fn resonate(prototype_weight: UniversalVector) {
+        
+    }
 }
