@@ -1,11 +1,11 @@
 use crate::perception::universal_vector::UniversalVector;
 
 pub struct PrototypicalNeuralUnit {
-    pub id: Uuid,
+    pub id: String,
     pub prototype_weight: UniversalVector,
     pub activation_threshold: f64,
     pub current_activation_energy: f64,
-    pub link: Vec<Uuid>,
+    pub link: Vec<String>,
 }
 
 impl PrototypicalNeuralUnit {
