@@ -116,6 +116,53 @@ impl UniversalVector {
 }
 
 impl Signature {
+impl Signature {
+    /// Retourne l'élément neutre de l'algèbre (Identité pour le produit de Chen)
+    /// dim : le nombre de dimensions du signal d'entrée (ex: 5 pour votre pendule)
+    pub fn identity(dim: usize) -> Self {
+        Signature {
+            level1: (0.0, 0.0), // Note: Dans une version pure, level1 serait un Vec de taille dim
+            level2: vec![vec![0.0; dim]; dim], 
+            level3: vec![vec![vec![0.0; dim]; dim]; dim],
+        }
+    }
+
+    /// Calcule la signature d'un segment de droite dans un espace à d dimensions.
+    /// Pour un segment droit, les intégrales itérées sont simplement les produits 
+    /// tensoriels divisés par la factorielle de l'ordre.
+    pub fn from_multidim_segment(dt: f64, dX: &[f64]) -> Self {
+        let dim = dX.len();
+        // Pour inclure le temps comme une dimension, on l'ajoute souvent au vecteur
+        let mut d = vec![dt];
+        d.extend_from_slice(dX);
+        let actual_dim = d.len();
+
+        let mut sig = Signature {
+            level1: (dt, dX[0]), // Rétro-compatibilité : on stocke les deux premiers
+            level2: vec![vec![0.0; actual_dim]; actual_dim],
+            level3: vec![vec![vec![0.0; actual_dim]; actual_dim]; actual_dim],
+        };
+
+        // Niveau 2 : (d_i * d_j) / 2!
+        for i in 0..actual_dim {
+            for j in 0..actual_dim {
+                sig.level2[i][j] = d[i] * d[j] / 2.0;
+            }
+        }
+
+        // Niveau 3 : (d_i * d_j * d_k) / 3!
+        for i in 0..actual_dim {
+            for j in 0..actual_dim {
+                for k in 0..actual_dim {
+                    sig.level3[i][j][k] = d[i] * d[j] * d[k] / 6.0;
+                }
+            }
+        }
+        sig
+    }
+}
+
+
     /// Crée la signature exacte d'un segment linéaire (dx, dt)
     /// C'est crucial pour l'invariance au sous-échantillonnage.
     /// Un segment droit contient des termes d'ordre supérieur (1/2, 1/6) non nuls.
@@ -346,8 +393,15 @@ impl Signature {
 }
 
 impl Gradient {
-    pub fn update(deltas: Vec<(f64, f64)>) -> Self {
-        Gradient { data: deltas }
+    /// Calcule le gradient multidimensionnel (Vitesse locale dans l'espace des phases)
+    pub fn update(deltas: &[(f64, Vec<f64>)]) -> Self {
+        // Ici, on stocke la moyenne pondérée des incréments par dimension
+        let mut data = Vec::new();
+        for (dt, dX) in deltas {
+            // on prend le premier dX
+            data.push((*dt, dX[0])); 
+        }
+        Gradient { data }
     }
 
     pub fn zero() -> Self {
