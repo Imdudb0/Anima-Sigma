@@ -3,5 +3,4 @@ resolver = "2"
 
 members = [
     "ArchT3",
-    "Anima-Sigma",
 ]
