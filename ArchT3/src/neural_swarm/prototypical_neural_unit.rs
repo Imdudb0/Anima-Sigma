@@ -16,4 +16,6 @@ impl PrototypicalNeuralUnit {
             current_activation_energy: 0.0,
         }
     }
+
+    pub fn hebbian_learning() {}
 }
