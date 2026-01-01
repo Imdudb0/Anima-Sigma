@@ -10,9 +10,10 @@ pub struct UniversalVector {
 
 #[derive(Debug, PartialEq, Clone,  Serialize,  Deserialize)]
 pub struct Signature {
-    pub level1: (f64, f64),
-    pub level2: [[f64; 2]; 2],
-    pub level3: [[[f64; 2]; 2]; 2],
+    pub dim: usize,
+    pub level1: Vec<f64>,
+    pub level2: Vec<Vec<f64>>,
+    pub level3: Vec<Vec<Vec<f64>>>,
 }
 
 #[derive(Debug, PartialEq, Clone,  Serialize,  Deserialize)]
@@ -337,11 +338,11 @@ impl Signature {
         s1.distance(&s2)
     }
 
-    pub fn zero() -> Self {
+    pub fn zero(dim: usize) -> Self {
         Signature {
-            level1: (0.0_f64, 0.0_f64),
-            level2: [[0.0_f64; 2]; 2],
-            level3: [[[0.0_f64; 2]; 2]; 2],
+            level1: vec![0.0; dim],
+            level2: vec![vec![0.0; dim]; dim],
+            level3: vec![vec![vec![0.0; dim]; dim]; dim],
         }
     }
 }
