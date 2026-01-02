@@ -1,24 +1,9 @@
+use crate::meta_cognition::reflex::{ReflexMetrics, ReflexConfig};
+
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-// === STRUCTURES DE DONNÉES ===
-
-#[derive(Clone)]
-struct ReflexMetrics {
-    actions_count: u32,
-    average_response_time_ms: f64,
-    errors: Vec<String>,
-}
-
-#[derive(Clone)]
-struct ReflexConfig {
-    reaction_threshold: f64,
-    pattern: String,
-    cooldown_ms: u64,
-}
-
-// === POINT D'ENTRÉE ===
 
 fn main() {
     println!("🧠 Démarrage du cerveau artificiel...");
