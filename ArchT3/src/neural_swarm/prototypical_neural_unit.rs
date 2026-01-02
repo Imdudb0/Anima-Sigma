@@ -1,63 +1,80 @@
 use crate::perception::universal_vector::UniversalVector;
 
-/*pub struct PrototypicalNeuralUnit {
-    pub id: String,
-    pub prototype_weight: UniversalVector,
-    pub activation_threshold: f64,
-    pub current_activation_energy: f64,
-    pub link: Vec<String>,
-    pub symbolic_label: String,
-}*/
+#[derive(Clone)]
+pub struct LateralLink {
+    pub target_id: usize,
+    pub weight: f32,
+    pub plasticity_rate: f32,
+}
+
+#[derive(Clone)]
+pub struct TemporalCorrelation {
+    pub pnu_id: usize,
+    pub correlation_strength: f32,
+    pub last_coactivation_time: f64,
+}
+
+/// Handle vers signature brute (mémoire épisodique)
+pub struct SignatureHandle {
+    pub signature_segment: Vec<f32>,
+    pub timestamp: f64,
+    pub scene_context_id: u64,
+}
+
+pub struct PNUState {
+    pub activation: f32,
+    pub derivative: f32,
+}
 
 pub struct PrototypicalNeuralUnit {
-    // Identifiant unique pour le PNU
-    int id;
-    
-    // Vecteur de Poids (W) : "Chaque PNU possède en mémoire une 'Signature Prototype'. C'est son poids synaptique."
-    float* weight_vector;
-    size_t weight_dim;
-    
-    // Seuil d'Activation (θ) : "Seuil d'Activation (θ) : La tolérance du neurone (est-il strict ou laxiste ?)."
-    float activation_threshold;
-    
-    // Valeur d'Activation (a_i) : "L'Activation du PNU (a_i) : Le PNU calcule sa résonance avec la signature."
-    float activation_value;
-    
-    // Valeur de Vérité : "Ce 0.85 devient littéralement la Valeur de Vérité de la proposition atomique dans la logique de Lukasiewicz."
-    float truth_value;
-    
-    // Étiquette Symbolique : "Chaque PNU possède une Étiquette Symbolique (un pointeur vers un concept logique, ex: Predicate:Falling)."
-    const char* symbolic_label;
-    
-    // Liens Latéraux (L_ij) : "Liens Latéraux (L_ij) : Connexions vers les autres PNU (excitateurs ou inhibiteurs)."
-    struct {
-        int target_pnu_id;
-        float weight; // positif=excitateur, négatif=inhibiteur
-    }* lateral_links;
-    size_t num_lateral_links;
-    
-    // Taux d'Apprentissage : "Quand une PNU gagne (reconnaît une signature), elle modifie légèrement son poids (W)"
-    float learning_rate;
-    
-    // Corrélations Temporelles : "Si plusieurs PNU s'activent souvent ensemble (temporellement), une connexion physique se renforce"
-    struct {
-        int correlated_pnu_id;
-        float correlation_strength;
-    }* temporal_correlations;
-    size_t num_correlations;
-    
-    // Signature Handle : "Le symbole FOL est un Pointeur vers l'adresse mémoire de la Signature."
-    void* signature_handle;
-};
+    pub id: usize,
+    pub symbolic_label: &'static str,
 
-/*impl PrototypicalNeuralUnit {
-    pub fn new(prototype_weight: UniversalVector,  activation_threshold: f64) -> Self {
-        Self {
-            prototype_weight,
-            activation_threshold,
-            current_activation_energy: 0.0,
-        }
-    }
+    pub state: PNUState,
 
-    pub fn hebbian_learning() {}
-}*/
+    // Poids prototype & apprentissage Oja
+    pub weight_vector: Box<[f32]>,   // W_i sur sphère unité (pas de *float!)
+    pub learning_rate_eta: f32,
+
+    // Seuils multi-modulés (Rust garantit l'initialisation)
+    pub theta_base: f32,             // Tolérance de base
+    pub theta_homeostatic: f32,      // Δθ par homéostasie
+    pub theta_semantic_fatigue: f32, // μ_i : fatigue par surprise
+    // Pas besoin de "effective_threshold" : calculé à la volée dans la méthode `update()`
+
+    // Budget métabolique (sécurisé contre la saturation)
+    pub activation_budget: f32,
+    pub activation_consumption: f32,
+
+    // Contrôle de gain temporel (hystérèse)
+    pub auto_inhibition_a: f32,
+    pub a_base: f32,
+    pub gain_modulation_phi: f32,
+
+    // Paramètres Shunting (B, C, A)
+    pub shunting_b: f32,
+    pub shunting_c: f32,
+    pub decay_rate: f32,
+
+    // Connectivité latérale (Vec au lieu de tableau C)
+    pub lateral_links: Vec<LateralLink>, // ~√N voisins (Small-World)
+
+    // Corrélations temporelles
+    pub temporal_correlations: Vec<TemporalCorrelation>,
+
+    // Handle vers signature brute
+    pub signature_handle: SignatureHandle,
+
+    // Valeurs FOL
+    pub truth_value: f32,            // Pour logique de Lukasiewicz
+    pub injection_threshold: f32,    // Seuil de cristallisation
+
+    // Plasticité spécialisée
+    pub surprise_sensitivity: f32,
+    pub vigilance_contribution: f32,
+
+    // Timestamps
+    pub last_spike_time: f64,
+    pub last_surprise_time: f64,
+    pub birth_timestamp: f64,
+}
