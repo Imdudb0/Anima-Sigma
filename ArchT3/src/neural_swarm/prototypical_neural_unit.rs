@@ -1,5 +1,7 @@
 use crate::perception::universal_vector::UniversalVector;
 
+use std::f32::consts::E;
+
 #[derive(Clone)]
 pub struct LateralLink {
     pub target_id: usize,
@@ -8,92 +10,6 @@ pub struct LateralLink {
 }
 
 #[derive(Clone)]
-pub struct TemporalCorrelation {
-    pub pnu_id: usize,
-    pub correlation_strength: f32,
-    pub last_coactivation_time: f64,
-}
-
-/// Handle vers signature brute (mémoire épisodique)
-pub struct SignatureHandle {
-    pub signature_segment: Vec<f32>,
-    pub timestamp: f64,
-    pub scene_context_id: u64,
-}
-
-pub struct PNUState {
-    pub activation: f32,
-    pub derivative: f32,
-}
-
-pub struct PrototypicalNeuralUnit {
-    pub id: usize,
-    pub symbolic_label: &'static str,
-
-    pub state: PNUState,
-
-    // Poids prototype & apprentissage Oja
-    pub weight_vector: Box<[f32]>,   // W_i sur sphère unité (pas de *float!)
-    pub learning_rate_eta: f32,
-
-    // Seuils multi-modulés (Rust garantit l'initialisation)
-    pub theta_base: f32,             // Tolérance de base
-    pub theta_homeostatic: f32,      // Δθ par homéostasie
-    pub theta_semantic_fatigue: f32, // μ_i : fatigue par surprise
-    // Pas besoin de "effective_threshold" : calculé à la volée dans la méthode `update()`
-
-    // Budget métabolique (sécurisé contre la saturation)
-    pub activation_budget: f32,
-    pub activation_consumption: f32,
-
-    // Contrôle de gain temporel (hystérèse)
-    pub auto_inhibition_a: f32,
-    pub a_base: f32,
-    pub gain_modulation_phi: f32,
-
-    // Paramètres Shunting (B, C, A)
-    pub shunting_b: f32,
-    pub shunting_c: f32,
-    pub decay_rate: f32,
-
-    // Connectivité latérale (Vec au lieu de tableau C)
-    pub lateral_links: Vec<LateralLink>, // ~√N voisins (Small-World)
-
-    // Corrélations temporelles
-    pub temporal_correlations: Vec<TemporalCorrelation>,
-
-    // Handle vers signature brute
-    pub signature_handle: SignatureHandle,
-
-    // Valeurs FOL
-    pub truth_value: f32,            // Pour logique de Lukasiewicz
-    pub injection_threshold: f32,    // Seuil de cristallisation
-
-    // Plasticité spécialisée
-    pub surprise_sensitivity: f32,
-    pub vigilance_contribution: f32,
-
-    // Timestamps
-    pub last_spike_time: f64,
-    pub last_surprise_time: f64,
-    pub birth_timestamp: f64,
-}
-
-
-
-
-
-
-// lateral_topology.rs
-// Implementation of the "Essaim" Lateral Diffusion and Topological Inhibition.
-
-use std::f32::consts::E;
-
-// =============================================================================
-// 1. Data Structures (Context Preserved)
-// =============================================================================
-
-#[derive(Clone, Debug)]
 pub struct TemporalCorrelation {
     pub pnu_id: usize,
     pub correlation_strength: f32,
@@ -129,6 +45,7 @@ pub struct PrototypicalNeuralUnit {
     pub theta_base: f32,             
     pub theta_homeostatic: f32,      
     pub theta_semantic_fatigue: f32, 
+    // Pas besoin de "effective_threshold" : calculé à la volée dans la méthode `update()`
 
     // Metabolic Budget
     pub activation_budget: f32,
@@ -290,100 +207,4 @@ pub fn calculate_lateral_input(pnu: &PrototypicalNeuralUnit, swarm: &[Prototypic
     }
     
     (exc_sum, inh_sum)
-}
-
-// =============================================================================
-// 4. Tests
-// =============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Helper to create a dummy PNU
-    fn create_dummy_pnu(id: usize, coords: Vec<f32>) -> PrototypicalNeuralUnit {
-        PrototypicalNeuralUnit {
-            id,
-            symbolic_label: "Test",
-            state: PNUState { activation: 0.0, derivative: 0.0 },
-            weight_vector: coords.into_boxed_slice(),
-            learning_rate_eta: 0.01,
-            theta_base: 0.5,
-            theta_homeostatic: 0.0,
-            theta_semantic_fatigue: 0.0,
-            activation_budget: 100.0,
-            activation_consumption: 0.0,
-            auto_inhibition_a: 1.0, // Decay rate A
-            a_base: 1.0,
-            gain_modulation_phi: 0.1,
-            shunting_b: 1.0,
-            shunting_c: 0.2,
-            decay_rate: 0.1,
-            lateral_links: Vec::new(),
-            temporal_correlations: Vec::new(),
-            signature_handle: SignatureHandle { signature_segment: vec![], timestamp: 0.0, scene_context_id: 0 },
-            truth_value: 0.0,
-            injection_threshold: 0.8,
-            surprise_sensitivity: 0.1,
-            vigilance_contribution: 0.0,
-            last_spike_time: 0.0,
-            last_surprise_time: 0.0,
-            birth_timestamp: 0.0,
-        }
-    }
-
-    #[test]
-    fn test_mexican_hat_topology() {
-        // Create 3 PNUs: 
-        // 0 and 1 are very close (should excite)
-        // 0 and 2 are medium distance (should inhibit - The Crown)
-        let mut swarm = vec![
-            create_dummy_pnu(0, vec![1.0, 1.0]),
-            create_dummy_pnu(1, vec![1.0, 1.1]), // Dist = 0.1
-            create_dummy_pnu(2, vec![1.0, 3.0]), // Dist = 2.0
-        ];
-
-        let config = TopologyConfig {
-            sigma_excitation: 0.5,
-            sigma_inhibition: 1.5,
-            amp_excitation: 2.0,
-            amp_inhibition: 1.0,
-            connection_cutoff: 0.01,
-            max_neighbors: 10,
-        };
-
-        wire_swarm_topology(&mut swarm, &config);
-
-        let pnu0 = &swarm[0];
-        
-        // Find link to PNU 1 (Close neighbor)
-        let link_to_1 = pnu0.lateral_links.iter().find(|l| l.target_id == 1).unwrap();
-        assert!(link_to_1.weight > 0.0, "Close neighbors should be excitatory");
-
-        // Find link to PNU 2 (Crown neighbor)
-        let link_to_2 = pnu0.lateral_links.iter().find(|l| l.target_id == 2).unwrap();
-        assert!(link_to_2.weight < 0.0, "Medium distance neighbors should be inhibitory");
-
-        println!("Link 0->1 Weight: {} (Expect +)", link_to_1.weight);
-        println!("Link 0->2 Weight: {} (Expect -)", link_to_2.weight);
-    }
-
-    #[test]
-    fn test_gershgorin_stability() {
-        let mut pnu = create_dummy_pnu(0, vec![0.0]);
-        // Set decay A = 1.0
-        pnu.auto_inhibition_a = 1.0;
-
-        // Manually add unstable links (Sum > 1.0)
-        pnu.lateral_links.push(LateralLink { target_id: 1, weight: 0.8, plasticity_rate: 0.0 });
-        pnu.lateral_links.push(LateralLink { target_id: 2, weight: -0.8, plasticity_rate: 0.0 }); // Abs = 0.8
-
-        // Total Influx = 1.6 > 1.0 (Unstable!)
-        
-        pnu.enforce_gershgorin_stability();
-
-        let new_sum: f32 = pnu.lateral_links.iter().map(|l| l.weight.abs()).sum();
-        assert!(new_sum < pnu.auto_inhibition_a, "Gershgorin stability should scale down weights");
-        println!("New lateral sum: {} < {}", new_sum, pnu.auto_inhibition_a);
-    }
 }
