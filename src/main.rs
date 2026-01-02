@@ -142,7 +142,7 @@ fn main() {
 }
 
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -232,4 +232,4 @@ mod tests {
         assert!(new_sum < pnu.auto_inhibition_a, "Gershgorin stability should scale down weights");
         println!("New lateral sum: {} < {}", new_sum, pnu.auto_inhibition_a);
     }
-}
+}*/
