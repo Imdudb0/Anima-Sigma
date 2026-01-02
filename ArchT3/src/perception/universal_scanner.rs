@@ -4,6 +4,8 @@ use crate::perception::universal_transducer::UniversalTransducer;
 
 use std::collections::VecDeque;
 
+pub trait UniversalSource;
+
 pub struct UniversalScanner {
     // Tampons pour le Transducer
     raw_buffer: Vec<Vec<f64>>,
