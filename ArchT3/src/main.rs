@@ -33,7 +33,7 @@ fn main() {
         
         loop {
             let elapsed = start_time.elapsed().as_secs_f64();
-            if elapsed >= 30.0 { break; }
+            if elapsed >= 1.0 { break; }
 
             // Récupère config actuelle (lecture rapide)
             let current_config = {
