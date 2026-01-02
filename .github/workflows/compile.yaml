@@ -1,4 +1,4 @@
-name: Run cr
+name: Run 4rchT3
 
 on:
   workflow_dispatch
@@ -15,14 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Build 4rchT3
+        run: cargo build --verbose
 
-      - name: Build Workspace
-        run: cargo build --verbose --workspace
+      - name: Run 4rchT3 application
+        run: cargo run --verbose
 
-      - name: Run Specific Crate
-        run: cargo run --verbose -p ArchT3
+      - name: Run test
+        run: cargo test
 
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
