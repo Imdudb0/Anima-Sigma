@@ -1,13 +1,13 @@
 use crate::perception::universal_vector::UniversalVector;
 
-pub struct PrototypicalNeuralUnit {
+/*pub struct PrototypicalNeuralUnit {
     pub id: String,
     pub prototype_weight: UniversalVector,
     pub activation_threshold: f64,
     pub current_activation_energy: f64,
     pub link: Vec<String>,
     pub symbolic_label: String,
-}
+}*/
 
 pub struct PrototypicalNeuralUnit {
     // Identifiant unique pour le PNU
@@ -50,7 +50,7 @@ pub struct PrototypicalNeuralUnit {
     void* signature_handle;
 };
 
-impl PrototypicalNeuralUnit {
+/*impl PrototypicalNeuralUnit {
     pub fn new(prototype_weight: UniversalVector,  activation_threshold: f64) -> Self {
         Self {
             prototype_weight,
@@ -60,4 +60,4 @@ impl PrototypicalNeuralUnit {
     }
 
     pub fn hebbian_learning() {}
-}
+}*/
