@@ -1,5 +1,6 @@
 use crate::perception::adaptative_normalizer::AdaptiveNormalizer;
 use crate::perception::universal_vector::UniversalVector;
+use crate::perception::universal_transducer::UniversalTransducer;
 
 use std::collections::VecDeque;
 
