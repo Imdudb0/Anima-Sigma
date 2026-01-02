@@ -6,7 +6,7 @@ pub use meta_cognition::reflex::{
     ReflexConfig,
 };
 
-pub use cognition::neural_swarm::{
+pub use neural_swarm::prototypical_neural_unit::{
     PrototypicalNeuralUnit,
     TopologyConfig,
     SignatureHandle,
