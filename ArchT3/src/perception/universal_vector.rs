@@ -264,3 +264,9 @@ impl Metadata {
         }
     }
 }
+
+
+
+/*Changez en utilisant la signature standard (aplatie) combinée à une projection aléatoire (Random Projection).
+Remplacez le "trop d'allocations" par linearized signature.
+Utilisez une signature linearisée sélective. Si input d est < 10 n'utilisez aucune compression sinon Utilisez la RP.*/
