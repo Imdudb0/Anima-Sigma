@@ -1,4 +1,7 @@
 pub mod perception;
-pub mod world;
+pub mod meta_cognition;
 
-pub use world::balance_stick::BalanceStickAnimation;
+pub use meta_cognition::reflex::{
+    ReflexMetrics,
+    ReflexConfig,
+};
