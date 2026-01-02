@@ -1,4 +1,4 @@
-use crate::perception::adaptative_normalizer::AdaptativeNormalizer;
+use crate::perception::adaptative_normalizer::AdaptiveNormalizer;
 use crate::perception::universal_vector::UniversalVector;
 
 use std::collections::VecDeque;
