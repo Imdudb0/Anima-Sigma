@@ -17,8 +17,8 @@ jobs:
 
       - name: Build And Run
         run: | 
-          cargo build --verbose -p ArchT3
-          cargo run --verbose -p ArchT3
+          cargo build --verbose
+          cargo run --verbose
 
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
