@@ -94,13 +94,6 @@ use std::f32::consts::E;
 // =============================================================================
 
 #[derive(Clone, Debug)]
-pub struct LateralLink {
-    pub target_id: usize,
-    pub weight: f32,          // Can be positive (Excitation) or negative (Inhibition)
-    pub plasticity_rate: f32,
-}
-
-#[derive(Clone, Debug)]
 pub struct TemporalCorrelation {
     pub pnu_id: usize,
     pub correlation_strength: f32,
