@@ -10,4 +10,5 @@ pub use cognition::neural_swarm::{
     PrototypicalNeuralUnit,
     TopologyConfig,
     SignatureHandle,
+    PNUState,
 };
