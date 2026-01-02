@@ -15,10 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build And Run
-        run: | 
-          cargo build --verbose
-          cargo run --verbose
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Workspace
+        run: cargo build --verbose --workspace
+
+      - name: Run Specific Crate
+        run: cargo run --verbose -p ArchT3
 
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
