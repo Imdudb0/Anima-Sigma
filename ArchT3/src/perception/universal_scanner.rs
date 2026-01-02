@@ -1,10 +1,8 @@
 use crate::perception::adaptative_normalizer::AdaptiveNormalizer;
-use crate::perception::universal_vector::UniversalVector;
+use crate::perception::universal_vector::{UniversalVector, Metadata, Modality};
 use crate::perception::universal_transducer::UniversalTransducer;
 
 use std::collections::VecDeque;
-
-pub trait UniversalSource;
 
 pub struct UniversalScanner {
     // Tampons pour le Transducer
@@ -83,5 +81,27 @@ impl UniversalScanner {
     // Utile si on veut arrêter d'ajuster la moyenne/variance après un temps
     pub fn stop_learning(&mut self) {
         self.learning_enabled = false;
+    }
+}
+
+/// Le contrat que tout objet doit remplir pour être ingéré par le système.
+pub trait UniversalSource {
+    /// Retourne le moment de l'événement (en secondes, ou unité monotone croissante).
+    fn timestamp(&self) -> f64;
+
+    /// Extrait les caractéristiques brutes (features).
+    /// C'est ici que vous convertissez votre donnée métier en mathématiques.
+    /// Exemple : Un pixel RGB -> vec![r, g, b]
+    fn to_features(&self) -> Vec<f64>;
+
+    /// Fournit le contexte (Quelle modalité ? Quelle fiabilité ?).
+    /// Si la fiabilité n'est pas connue, renvoyer 1.0 par défaut.
+    fn metadata(&self) -> Metadata {
+        // Implémentation par défaut pratique
+        Metadata {
+            timestamp: self.timestamp(),
+            modality: Modality::Sensor, // Valeur par défaut, à surcharger
+            reliability: 1.0,
+        }
     }
 }
